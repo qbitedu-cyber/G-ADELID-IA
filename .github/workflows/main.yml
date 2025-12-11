@@ -19,7 +19,7 @@ jobs:
       - name: Checkout del código
         uses: actions/checkout@v4
 
-      # 1. SUSTITUIR EL PLACEHOLDER CON EL VALOR REAL DEL SECRETO (Usando 'sed' de Linux)
+      # 1. SUSTITUIR EL PLACEHOLDER CON EL VALOR REAL DEL SECRETO (Usando 'awk' de Linux)
       - name: Sustituir clave API en index.html
         env:
           GEMINI_API_KEY_SECURE: ${{ secrets.GEMINI_API_KEY }}
