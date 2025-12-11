@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grabadora ADELID: Práctica de Inglés con Tutor AI</title>
+    <!-- Carga de Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Paleta: Negro (#000000) base, Blanco/Gris (#f9f9f9) secundario, Amarillo Oro (#FFD700) acento */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000000; /* Base Negro Sólido */
+            min-height: 100vh;
+            color: #f9f9f9; /* Texto claro */
+        }
+        /* Contenedor principal para dar contraste */
+        #app {
+            background-color: #111111; /* Negro muy oscuro */
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.1); /* Sutil sombra de acento */
+        }
+        /* Estilo para el botón de grabación */
+        .recording-pulse {
+            animation: pulse-red 1.5s infinite;
+        }
+        /* Pulso de grabación Rojo */
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(255, 50, 50, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(255, 50, 50, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 50, 50, 0); }
+        }
+        /* Estilo para el indicador de carga (Amarillo Oro) */
+        .loader {
+            border-top-color: #FFD700; 
+            border-left-color: #FFD700;
+            border-radius: 50%;
+            width: 1.5rem;
+            height: 1.5rem;
+            animation: spin 1s infinite linear;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        /* Estilo para el audio player, color oscuro y acentos amarillos */
+        audio::-webkit-media-controls-panel {
+            background-color: #222222;
+        }
+        audio::-webkit-media-controls-play-button,
+        audio::-webkit-media-controls-current-time-display,
+        audio::-webkit-media-controls-time-remaining-display {
+            color: #FFD700;
+        }
+        /* Botones de acción principales */
+        .btn-accent {
+            background-color: #FFD700;
+            color: #000000;
+            font-weight: 700;
+            transition: all 0.3s ease;
+        }
+        .btn-accent:hover {
+            background-color: #f7d000;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+        }
+        .btn-record-red {
+            background-color: #ef4444; /* Tailwind red-500 */
+        }
+        .btn-record-red:hover:not(:disabled) {
+            background-color: #dc2626; /* Tailwind red-600 */
+        }
+        .btn-secondary-gray {
+            background-color: #444444;
+            color: #f9f9f9;
+        }
+        .btn-secondary-gray:hover:not(:disabled) {
+            background-color: #555555;
+        }
+        
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+    <div id="app" class="p-8 md:p-12 rounded-xl w-full max-w-xl border border-yellow-800/50">
+        
+        <!-- Encabezado de la Aplicación -->
+        <h1 class="text-3xl font-extrabold text-yellow-400 mb-1 text-center">
+            🎤 ADELID | Tutor de Práctica
+        </h1>
+        <p class="text-gray-400 mb-8 text-center text-md">
+            Graba tu respuesta y recibe transcripción y feedback instantáneo.
+        </p>
+
+        <!-- Área de Control de Grabación -->
+        <div class="flex flex-col items-center space-y-6 bg-gray-900 p-6 rounded-xl border border-gray-700">
+            
+            <!-- Indicador de Estado y Tiempo -->
+            <div id="estado-grabacion" class="text-xl font-bold h-7 text-center text-white transition-colors duration-300">
+                Pulse "Grabar" para iniciar
+            </div>
+            <div id="tiempo-grabado" class="text-5xl font-mono text-yellow-400">
+                00:00:00
+            </div>
+
+            <!-- Controles (Botones) -->
+            <div class="flex space-x-6">
+                <!-- Botón GRABAR -->
+                <button id="btn-grabar" class="btn-record-red text-white font-bold py-3 px-8 rounded-full shadow-lg transition duration-150 ease-in-out disabled:opacity-50">
+                    <span id="texto-grabar">Grabar</span>
+                </button>
+                
+                <!-- Botón DETENER -->
+                <button id="btn-detener" class="btn-secondary-gray font-bold py-3 px-8 rounded-full shadow-lg transition duration-150 ease-in-out disabled:opacity-50" disabled>
+                    Detener
+                </button>
+            </div>
+        </div>
+
+        <!-- Área de Post-Grabación (Visible solo después de grabar) -->
+        <div id="area-post-grabacion" class="mt-8 pt-6 border-t border-gray-800 hidden flex flex-col items-center space-y-6">
+
+            <h2 class="text-xl font-semibold text-white">Audio Capturado</h2>
+
+            <!-- Reproductor de Vista Previa -->
+            <audio id="audio-preview" controls class="w-full max-w-xs rounded-lg bg-gray-800 p-2"></audio>
+
+            <div class="flex flex-col md:flex-row space-y-3 md:space-y-0 md:space-x-4 w-full justify-center">
+                <!-- Botón de Análisis con IA: Color Amarillo de Acento -->
+                <button id="btn-analizar" class="btn-accent inline-flex items-center py-3 px-6 rounded-lg shadow-xl justify-center disabled:opacity-50 w-full md:w-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 mr-2"><path d="M11.25 10.5l4.5 4.5m-4.5-4.5l4.5-4.5" /><path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm.53 5.47a.75.75 0 00-1.06 0l-3 3a.75.75 0 101.06 1.06l1.72-1.72v5.69a.75.75 0 001.5 0v-5.69l1.72 1.72a.75.75 0 101.06-1.06l-3-3z" clip-rule="evenodd" /></svg>
+                    <span id="texto-analizar">Analizar con Tutor AI</span>
+                </button>
+                
+                <!-- Botón de Descarga: Color secundario (gris oscuro) -->
+                <a id="link-descarga" class="btn-secondary-gray inline-flex items-center py-3 px-6 rounded-lg shadow-xl justify-center w-full md:w-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L10 11.586l1.293-1.293a1 1 0 111.414 1.414l-2 2a1 1 0 01-1.414 0l-2-2a1 1 0 010-1.414z" clip-rule="evenodd" /><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v8a1 1 0 11-2 0V3a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                    Descargar Audio (.webm)
+                </a>
+            </div>
+        </div>
+        
+        <!-- Área de Análisis (Resultados de Gemini) -->
+        <div id="area-analisis" class="mt-8 pt-8 border-t border-yellow-700/50 hidden">
+            <h2 class="text-2xl font-bold text-yellow-400 mb-6 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 mr-2"><path d="M11.472 3.96a.75.75 0 011.056 0l7.25 7.25a.75.75 0 01-.22.75l-4.25 4.25a.75.75 0 01-1.06 0l-2.25-2.25a.75.75 0 00-1.06 0l-2.25 2.25a.75.75 0 01-1.06 0l-4.25-4.25a.75.75 0 01-.22-.75l7.25-7.25z" /></svg>
+                Resultados del Tutor AI
+            </h2>
+            
+            <!-- Transcripción -->
+            <div class="bg-gray-800 p-4 rounded-lg mb-6 border border-yellow-600/50">
+                <h3 class="font-semibold text-yellow-300 mb-2">1. Transcripción (Inglés):</h3>
+                <p id="transcripcion-resultado" class="text-white italic min-h-[20px] text-lg">
+                    <!-- Resultado de la IA -->
+                </p>
+            </div>
+
+            <!-- Feedback -->
+            <div class="bg-gray-800 p-4 rounded-lg border border-yellow-600/50">
+                <h3 class="font-semibold text-yellow-300 mb-2">2. Feedback Constructivo:</h3>
+                <div id="feedback-resultado" class="text-gray-200 mt-1 min-h-[20px] prose prose-invert max-w-none">
+                    <!-- Resultado de la IA -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Área de Mensajes de Error (Oculta por defecto) -->
+        <div id="area-mensajes" class="mt-8 p-4 bg-red-900/40 border-l-4 border-red-500 text-red-300 hidden rounded-md">
+            <p class="font-bold">Error del Sistema:</p>
+            <p id="mensaje-error"></p>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Constantes y Variables Globales ---
+        const MODEL_NAME = "gemini-2.5-flash-preview-09-2025";
+        const API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
+        const API_ENDPOINT = "generateContent";
+        
+        // **IMPORTANTE**: PLACEHOLDER que será sustituido por GitHub Actions.
+        const apiKey = "REEMPLAZAR_CON_GEMINI_SECRET"; 
+        
+        let mediaRecorder;
+        let lastAudioChunks = [];
+        let stream;
+        let timerInterval;
+        let startTime;
+
+        // --- Referencias a Elementos del DOM ---
+        const btnGrabar = document.getElementById('btn-grabar');
+        const btnDetener = document.getElementById('btn-detener');
+        const btnAnalizar = document.getElementById('btn-analizar');
+        const linkDescarga = document.getElementById('link-descarga');
+        const audioPreview = document.getElementById('audio-preview');
+        const estadoGrabacion = document.getElementById('estado-grabacion');
+        const tiempoGrabado = document.getElementById('tiempo-grabado');
+        const areaPostGrabacion = document.getElementById('area-post-grabacion');
+        const areaAnalisis = document.getElementById('area-analisis');
+        const areaMensajes = document.getElementById('area-mensajes');
+        const mensajeError = document.getElementById('mensaje-error');
+        const textoGrabar = document.getElementById('texto-grabar');
+        const textoAnalizar = document.getElementById('texto-analizar');
+        const transcripcionResultado = document.getElementById('transcripcion-resultado');
+        const feedbackResultado = document.getElementById('feedback-resultado');
+
+        // --- Funciones de Utilidad ---
+        
+        function mostrarMensaje(mensaje) {
+            mensajeError.textContent = mensaje;
+            areaMensajes.classList.remove('hidden');
+        }
+        
+        function ocultarMensaje() {
+            areaMensajes.classList.add('hidden');
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            tiempoGrabado.textContent = '00:00:00';
+        }
+
+        function actualizarTiempo() {
+            const elapsedTime = new Date() - startTime;
+            const totalSeconds = Math.floor(elapsedTime / 1000);
+            const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+            const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+            const seconds = String(totalSeconds % 60).padStart(2, '0');
+            tiempoGrabado.textContent = `${hours}:${minutes}:${seconds}`;
+        }
+
+        function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const base64String = reader.result.split(',')[1];
+                    resolve(base64String);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        // --- Lógica de Grabación ---
+        async function iniciarGrabacion() {
+            areaPostGrabacion.classList.add('hidden');
+            areaAnalisis.classList.add('hidden');
+            ocultarMensaje();
+            lastAudioChunks = [];
+            resetTimer();
+            transcripcionResultado.textContent = '';
+            feedbackResultado.innerHTML = '';
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        lastAudioChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = () => {
+                    finalizarGrabacion();
+                };
+
+                mediaRecorder.start();
+
+                btnGrabar.disabled = true;
+                btnDetener.disabled = false;
+                btnAnalizar.disabled = true;
+                
+                btnGrabar.classList.add('recording-pulse');
+                textoGrabar.textContent = 'Grabando...';
+                
+                estadoGrabacion.textContent = '🔴 Grabando (¡Habla claro!)';
+                estadoGrabacion.classList.add('text-red-500');
+                estadoGrabacion.classList.remove('text-white');
+                
+                startTime = new Date();
+                timerInterval = setInterval(actualizarTiempo, 1000);
+
+            } catch (error) {
+                console.error("Error al acceder al micrófono:", error);
+                mostrarMensaje('No se pudo acceder al micrófono. Por favor, asegúrate de dar permiso.');
+                btnGrabar.disabled = false;
+                btnDetener.disabled = true;
+                btnAnalizar.disabled = true;
+            }
+        }
+
+        function detenerGrabacion() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+
+            clearInterval(timerInterval);
+            
+            btnGrabar.disabled = false;
+            btnDetener.disabled = true;
+            btnAnalizar.disabled = false;
+            
+            btnGrabar.classList.remove('recording-pulse');
+            textoGrabar.textContent = 'Grabar de nuevo';
+            
+            estadoGrabacion.textContent = 'Grabación completada. Analiza o Descarga.';
+            estadoGrabacion.classList.remove('text-red-500');
+            estadoGrabacion.classList.add('text-green-500');
+        }
+        
+        function finalizarGrabacion() {
+            if (lastAudioChunks.length === 0) {
+                mostrarMensaje('No se grabó audio o la grabación fue demasiado corta. Intenta de nuevo.');
+                return;
+            }
+
+            const blob = new Blob(lastAudioChunks, { type: 'audio/webm' });
+            const audioURL = URL.createObjectURL(blob);
+
+            audioPreview.src = audioURL;
+            linkDescarga.href = audioURL;
+            
+            const timestamp = new Date().toISOString().replace(/:/g, "-").slice(0, 19);
+            linkDescarga.download = `ADELID_Practica_${timestamp}.webm`;
+            
+            areaPostGrabacion.classList.remove('hidden');
+        }
+
+
+        // --- Lógica de Análisis con Gemini API ---
+
+        async function analizarAudio() {
+            ocultarMensaje();
+
+            if (lastAudioChunks.length === 0) {
+                 mostrarMensaje('Error: Por favor, graba un audio antes de analizar.');
+                 return;
+            }
+
+            // **VALIDACIÓN CRÍTICA**: Comprueba si el placeholder fue sustituido
+            if (apiKey === "REEMPLAZAR_CON_GEMINI_SECRET") {
+                mostrarMensaje('ERROR de Configuración: La clave API (apiKey) aún no ha sido sustituida. Esto debe hacerse automáticamente durante el despliegue (CI/CD) de GitHub Actions.');
+                return;
+            }
+
+            // Preparar la UI
+            areaAnalisis.classList.remove('hidden');
+            transcripcionResultado.textContent = 'Iniciando análisis...';
+            feedbackResultado.innerHTML = `<div class="flex items-center text-yellow-400"><span class="loader border-4 border-t-4 border-yellow-400 rounded-full w-5 h-5 inline-block mr-3"></span> Transcribiendo y buscando feedback de la IA...</div>`;
+            
+            btnAnalizar.disabled = true;
+            textoAnalizar.textContent = 'Analizando...';
+            
+            try {
+                const blob = new Blob(lastAudioChunks, { type: 'audio/webm' });
+                const base64Audio = await blobToBase64(blob);
+
+                const systemPrompt = "Eres un tutor de inglés profesional y parte del proyecto ADELID. Tu objetivo es ayudar a los estudiantes de 12-20 años a mejorar su pronunciación, fluidez y gramática de forma seria y constructiva. Debes realizar dos tareas y devolver los resultados en español:\n\n1. Transcripción: Proporciona **únicamente la transcripción** del texto hablado en **inglés**.\n2. Feedback: Proporciona un breve y puntual feedback constructivo. Céntrate en la pronunciación (si se detecta), gramática y fluidez. Luego, sugiere una frase alternativa o una corrección natural a la idea principal expresada. Usa formato Markdown para listas o negritas.";
+                const userQuery = "Transcribe el audio y proporciona feedback constructivo como un tutor de inglés de ADELID.";
+
+                const payload = {
+                    contents: [
+                        {
+                            role: "user",
+                            parts: [
+                                { text: userQuery },
+                                {
+                                    inlineData: {
+                                        mimeType: "audio/webm",
+                                        data: base64Audio
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                };
+
+                const apiUrl = `${API_BASE_URL}${MODEL_NAME}:${API_ENDPOINT}?key=${apiKey}`;
+
+                let response;
+                let success = false;
+                const maxRetries = 3;
+
+                // Implementación de Backoff Exponencial
+                for (let i = 0; i < maxRetries; i++) {
+                    try {
+                        response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        if (response.ok) {
+                            success = true;
+                            break;
+                        } else if (response.status === 429) {
+                            const delay = Math.pow(2, i) * 1000 + Math.random() * 500;
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                        } else {
+                            break;
+                        }
+                    } catch (error) {
+                        const delay = Math.pow(2, i) * 1000 + Math.random() * 500;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                }
+
+                if (!success || !response.ok) {
+                    throw new Error(`Error de conexión con Gemini. (Estado: ${response ? response.status : 'Desconocido'})`);
+                }
+
+                const result = await response.json();
+                const textResult = result.candidates?.[0]?.content?.parts?.[0]?.text || "No se pudo obtener el resultado del Tutor AI.";
+
+                // 3. Procesar y mostrar el resultado usando Regex
+                const transcriptionMatch = textResult.match(/1\. Transcripción: ([\s\S]*?)2\. Feedback:/i);
+                const feedbackMatch = textResult.match(/2\. Feedback: ([\s\S]*)/i);
+
+                if (transcriptionMatch && feedbackMatch) {
+                    transcripcionResultado.textContent = transcriptionMatch[1].trim();
+                    feedbackResultado.innerHTML = feedbackMatch[1].trim();
+                } else {
+                    transcripcionResultado.textContent = "Error de formato de la IA. Inténtalo de nuevo.";
+                    feedbackResultado.innerHTML = `<pre class="text-sm overflow-x-auto p-2 bg-gray-900 rounded">${textResult}</pre>`;
+                }
+
+            } catch (error) {
+                console.error("Error en el análisis de audio:", error);
+                mostrarMensaje('Hubo un error crítico al procesar el audio. Detalle: ' + error.message);
+                transcripcionResultado.textContent = 'Error de procesamiento.';
+                feedbackResultado.innerHTML = '';
+
+            } finally {
+                btnAnalizar.disabled = false;
+                textoAnalizar.textContent = 'Analizar con Tutor AI';
+            }
+        }
+
+
+        // --- Event Listeners ---
+        window.onload = () => {
+            btnGrabar.addEventListener('click', iniciarGrabacion);
+            btnDetener.addEventListener('click', detenerGrabacion);
+            btnAnalizar.addEventListener('click', analizarAudio);
+        };
+        
+    </script>
+</body>
+</html>
