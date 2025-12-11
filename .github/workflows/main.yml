@@ -28,11 +28,11 @@ jobs:
           chmod +w index.html
           
           # 2. Reemplazar la cadena literal REEMPLAZAR_CON_GEMINI_SECRET 
-          # con el valor de la variable de entorno.
-          sed -i 's|REEMPLAZAR_CON_GEMINI_SECRET|'${GEMINI_API_KEY_SECURE}'|g' index.html
+          # Usamos el delimitador '@' y comillas dobles para que el shell expanda la variable.
+          sed -i "s@REEMPLAZAR_CON_GEMINI_SECRET@${GEMINI_API_KEY_SECURE}@g" index.html
           
           # Verificación (Muestra el valor inyectado en el log)
-          echo "Verificación de la sustitución (Debe mostrar la clave oculta):"
+          echo "Verificación de la sustitución:"
           grep "const apiKey" index.html
 
       # 2. Configurar el entorno de despliegue
